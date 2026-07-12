@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="今日やることに集中する、シンプルなタスク管理ページ">
-  <link rel="stylesheet" href="styles.css?v=6">
+  <link rel="stylesheet" href="styles.css?v=7">
   <title>今日のタスク</title>
 </head>
 <body>
@@ -26,9 +26,9 @@
 
     <section class="focus-card" aria-live="polite">
       <div class="focus-top"><span class="live-dot"></span><span>いま、これをやる</span><span class="focus-time" id="liveTimer">00:00</span></div>
-      <h2 id="currentTitle">タスクを選んで始めよう</h2>
-      <p id="currentMeta">ひとつずつ、目の前のことに集中</p>
-      <button class="focus-action" id="currentAction" type="button" disabled>タスクを始める</button>
+      <h2 id="currentTitle" hidden></h2>
+      <p id="currentMeta">実行中のタスクはありません</p>
+      <button class="focus-action" id="currentAction" type="button" disabled>開始中のタスクなし</button>
     </section>
 
     <section class="task-section">
@@ -38,7 +38,13 @@
     </section>
 
     <section class="history-section">
-      <div class="section-heading"><div><p class="section-kicker">RECORD</p><h2>実績記録</h2></div><span class="task-count" id="historyCount">0件</span></div>
+      <div class="section-heading">
+        <div><p class="section-kicker">RECORD</p><h2>実績記録</h2></div>
+        <div class="history-heading-actions">
+          <span class="task-count" id="historyCount">0件</span>
+          <button class="history-clear-button" id="clearHistoryButton" type="button" hidden>すべて削除</button>
+        </div>
+      </div>
       <div class="history-list" id="historyList"></div>
       <p class="empty-state compact" id="historyEmpty">完了したタスクの実績時間がここに残ります。</p>
     </section>
@@ -94,6 +100,6 @@
 
     <div class="undo-toast" id="undoToast" hidden><span id="undoText">削除しました</span><button id="undoButton" type="button">元に戻す</button></div>
   </main>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>
