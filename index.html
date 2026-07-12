@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f6f3ee">
+  <meta name="description" content="今日やることに集中する、シンプルなタスクシュートアプリ">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+  <title>今日のタスク</title>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">◒</span><span>今日のタスク</span></div>
+      <button class="text-button" id="resetButton" type="button">リセット</button>
+    </header>
+
+    <section class="date-nav" aria-label="今日の日付">
+      <div><p class="date-kicker">TODAY</p><h1 id="todayLabel"></h1></div>
+    </section>
+
+    <section class="progress-card">
+      <div class="progress-head"><span>今日の進捗</span><strong id="progressText">0%</strong></div>
+      <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+      <div class="progress-foot"><span id="completedCount">0 / 0 完了</span><span id="remainingTime">残り 0分</span></div>
+    </section>
+
+    <section class="focus-card" aria-live="polite">
+      <div class="focus-top"><span class="live-dot"></span><span>いま、これをやる</span><span class="focus-time" id="liveTimer">00:00</span></div>
+      <h2 id="currentTitle">タスクを選んで始めよう</h2>
+      <p id="currentMeta">ひとつずつ、目の前のことに集中</p>
+      <button class="focus-action" id="currentAction" type="button" disabled>タスクを始める</button>
+    </section>
+
+    <section class="task-section">
+      <div class="section-heading"><div><p class="section-kicker">SCHEDULE</p><h2>今日の予定</h2></div><span class="task-count" id="taskCount">0件</span></div>
+      <div class="task-list" id="taskList"></div>
+      <p class="empty-state" id="emptyState" hidden>まだ予定がありません。<br>下のボタンから追加しましょう。</p>
+    </section>
+
+    <button class="add-fab" id="openAdd" type="button"><span>＋</span> タスクを追加</button>
+
+    <dialog class="add-dialog" id="addDialog">
+      <form method="dialog" id="addForm">
+        <div class="dialog-head"><h2>タスクを追加</h2><button class="close-button" value="cancel" aria-label="閉じる">×</button></div>
+        <label>タスク名<input id="taskTitle" required maxlength="60" placeholder="例：メールを確認する"></label>
+        <div class="form-row"><label>開始時間<input id="taskTime" type="time" value="09:00"></label><label>予定時間<select id="taskDuration"><option value="15">15分</option><option value="30" selected>30分</option><option value="45">45分</option><option value="60">1時間</option><option value="90">1時間30分</option><option value="120">2時間</option></select></label></div>
+        <label class="check-label"><input id="taskRepeat" type="checkbox"> 毎日の予定にする</label>
+        <button class="save-button" value="default" type="submit">追加する</button>
+      </form>
+    </dialog>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
