@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="今日やることに集中する、シンプルなタスク管理ページ">
-  <link rel="stylesheet" href="styles.css?v=4">
+  <link rel="stylesheet" href="styles.css?v=5">
   <title>今日のタスク</title>
 </head>
 <body>
@@ -47,26 +47,53 @@
 
     <dialog class="task-dialog" id="addDialog">
       <form method="dialog" id="addForm">
-        <div class="dialog-head"><h2>タスクを追加</h2><button class="close-button" value="cancel" aria-label="閉じる">×</button></div>
-        <label>タスク名<input id="taskTitle" required maxlength="60" placeholder="例：メールを確認する"></label>
-        <div class="form-row"><label>開始時間<input id="taskTime" type="time" value="09:00"></label><label>予定時間<select id="taskDuration"><option value="15">15分</option><option value="30" selected>30分</option><option value="45">45分</option><option value="60">1時間</option><option value="90">1時間30分</option><option value="120">2時間</option></select></label></div>
-        <label class="check-label"><input id="taskRepeat" type="checkbox"> 毎日の予定にする</label>
+        <div class="dialog-head">
+          <div><p class="dialog-kicker">NEW TASK</p><h2>タスクを追加</h2></div>
+          <button class="close-button" value="cancel" aria-label="閉じる">×</button>
+        </div>
+        <label class="field-label">タスク名
+          <input id="taskTitle" required maxlength="60" placeholder="例：メールを確認する">
+        </label>
+        <label class="field-label">開始時間
+          <input id="taskTime" type="time" value="09:00">
+        </label>
+        <label class="field-label">予定時間
+          <select id="taskDuration">
+            <option value="15">15分</option>
+            <option value="30" selected>30分</option>
+            <option value="45">45分</option>
+            <option value="60">1時間</option>
+            <option value="90">1時間30分</option>
+            <option value="120">2時間</option>
+          </select>
+        </label>
+        <label class="check-label"><input id="taskRepeat" type="checkbox"><span>毎日の予定にする</span></label>
         <button class="save-button" value="default" type="submit">追加する</button>
       </form>
     </dialog>
 
     <dialog class="task-dialog" id="editDialog">
       <form method="dialog" id="editForm">
-        <div class="dialog-head"><h2>タスクを編集</h2><button class="close-button" value="cancel" aria-label="閉じる">×</button></div>
-        <label>タスク名<input id="editTitle" required maxlength="60"></label>
-        <div class="form-row"><label>開始時間<input id="editTime" type="time"></label><label>予定時間<input id="editDuration" type="number" min="1" inputmode="numeric"><span class="input-suffix">分</span></label></div>
-        <label class="check-label"><input id="editRepeat" type="checkbox"> 毎日の予定にする</label>
+        <div class="dialog-head">
+          <div><p class="dialog-kicker">EDIT TASK</p><h2>タスクを編集</h2></div>
+          <button class="close-button" value="cancel" aria-label="閉じる">×</button>
+        </div>
+        <label class="field-label">タスク名
+          <input id="editTitle" required maxlength="60">
+        </label>
+        <label class="field-label">開始時間
+          <input id="editTime" type="time">
+        </label>
+        <label class="field-label">予定時間（分）
+          <input id="editDuration" type="number" min="1" inputmode="numeric">
+        </label>
+        <label class="check-label"><input id="editRepeat" type="checkbox"><span>毎日の予定にする</span></label>
         <button class="save-button" value="default" type="submit">変更を保存</button>
       </form>
     </dialog>
 
     <div class="undo-toast" id="undoToast" hidden><span id="undoText">削除しました</span><button id="undoButton" type="button">元に戻す</button></div>
   </main>
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
