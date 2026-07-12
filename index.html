@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="今日やることに集中する、シンプルなタスク管理ページ">
-  <link rel="stylesheet" href="styles.css?v=9">
+  <link rel="stylesheet" href="styles.css?v=10">
   <title>今日のタスク</title>
 </head>
 <body>
@@ -49,6 +49,32 @@
         <article class="summary-card"><span>実績時間</span><strong id="reviewActual">0分</strong></article>
         <article class="summary-card"><span>予定との差</span><strong id="reviewDifference">±0分</strong></article>
       </div>
+
+      <article class="clock-card">
+        <div class="clock-card-head">
+          <div><span class="clock-kicker">TIME MAP</span><strong>時間の使い方</strong></div>
+          <span id="clockItemCount">記録なし</span>
+        </div>
+        <div class="clock-layout">
+          <div class="clock-visual">
+            <svg class="review-clock" viewBox="0 0 260 260" role="img" aria-label="24時間の実績時計">
+              <circle class="clock-face" cx="130" cy="130" r="92"></circle>
+              <g id="clockTicks"></g>
+              <g id="clockSegments"></g>
+              <circle class="clock-center" cx="130" cy="130" r="58"></circle>
+              <text class="clock-center-label" x="130" y="119" text-anchor="middle">実績</text>
+              <text class="clock-center-value" id="clockCenterValue" x="130" y="145" text-anchor="middle">0分</text>
+              <text class="clock-number" x="130" y="23" text-anchor="middle">0</text>
+              <text class="clock-number" x="239" y="134" text-anchor="middle">6</text>
+              <text class="clock-number" x="130" y="249" text-anchor="middle">12</text>
+              <text class="clock-number" x="21" y="134" text-anchor="middle">18</text>
+            </svg>
+          </div>
+          <div class="clock-legend" id="clockLegend"></div>
+        </div>
+        <p class="clock-note">完了時刻と実績時間から、作業した時間帯を時計上に表示します。</p>
+      </article>
+
       <div class="review-list" id="reviewList"></div>
       <p class="empty-state compact" id="reviewEmpty">この期間の実績記録はありません。</p>
     </section>
@@ -91,6 +117,6 @@
 
     <div class="undo-toast" id="undoToast" hidden><span id="undoText">削除しました</span><button id="undoButton" type="button">元に戻す</button></div>
   </main>
-  <script src="app.js?v=9"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>
