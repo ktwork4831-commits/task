@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="今日やることに集中する、シンプルなタスク管理ページ">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=4">
   <title>今日のタスク</title>
 </head>
 <body>
@@ -45,7 +45,7 @@
 
     <button class="add-fab" id="openAdd" type="button"><span>＋</span> タスクを追加</button>
 
-    <dialog class="add-dialog" id="addDialog">
+    <dialog class="task-dialog" id="addDialog">
       <form method="dialog" id="addForm">
         <div class="dialog-head"><h2>タスクを追加</h2><button class="close-button" value="cancel" aria-label="閉じる">×</button></div>
         <label>タスク名<input id="taskTitle" required maxlength="60" placeholder="例：メールを確認する"></label>
@@ -54,7 +54,19 @@
         <button class="save-button" value="default" type="submit">追加する</button>
       </form>
     </dialog>
+
+    <dialog class="task-dialog" id="editDialog">
+      <form method="dialog" id="editForm">
+        <div class="dialog-head"><h2>タスクを編集</h2><button class="close-button" value="cancel" aria-label="閉じる">×</button></div>
+        <label>タスク名<input id="editTitle" required maxlength="60"></label>
+        <div class="form-row"><label>開始時間<input id="editTime" type="time"></label><label>予定時間<input id="editDuration" type="number" min="1" inputmode="numeric"><span class="input-suffix">分</span></label></div>
+        <label class="check-label"><input id="editRepeat" type="checkbox"> 毎日の予定にする</label>
+        <button class="save-button" value="default" type="submit">変更を保存</button>
+      </form>
+    </dialog>
+
+    <div class="undo-toast" id="undoToast" hidden><span id="undoText">削除しました</span><button id="undoButton" type="button">元に戻す</button></div>
   </main>
-  <script src="app.js"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
