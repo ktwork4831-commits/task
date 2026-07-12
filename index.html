@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="今日やることに集中する、シンプルなタスク管理ページ">
-  <link rel="stylesheet" href="styles.css?v=5">
+  <link rel="stylesheet" href="styles.css?v=6">
   <title>今日のタスク</title>
 </head>
 <body>
@@ -49,12 +49,12 @@
       <form method="dialog" id="addForm">
         <div class="dialog-head">
           <div><p class="dialog-kicker">NEW TASK</p><h2>タスクを追加</h2></div>
-          <button class="close-button" value="cancel" aria-label="閉じる">×</button>
+          <button class="close-button" type="button" data-close-dialog="addDialog" aria-label="閉じる">×</button>
         </div>
         <label class="field-label">タスク名
           <input id="taskTitle" required maxlength="60" placeholder="例：メールを確認する">
         </label>
-        <label class="field-label">開始時間
+        <label class="field-label add-start-field">開始時間
           <input id="taskTime" type="time" value="09:00">
         </label>
         <label class="field-label">予定時間
@@ -76,7 +76,7 @@
       <form method="dialog" id="editForm">
         <div class="dialog-head">
           <div><p class="dialog-kicker">EDIT TASK</p><h2>タスクを編集</h2></div>
-          <button class="close-button" value="cancel" aria-label="閉じる">×</button>
+          <button class="close-button" type="button" data-close-dialog="editDialog" aria-label="閉じる">×</button>
         </div>
         <label class="field-label">タスク名
           <input id="editTitle" required maxlength="60">
@@ -94,6 +94,6 @@
 
     <div class="undo-toast" id="undoToast" hidden><span id="undoText">削除しました</span><button id="undoButton" type="button">元に戻す</button></div>
   </main>
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
