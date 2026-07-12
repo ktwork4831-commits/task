@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="今日やることに集中する、シンプルなタスク管理ページ">
-  <link rel="stylesheet" href="styles.css?v=8">
+  <link rel="stylesheet" href="styles.css?v=9">
   <title>今日のタスク</title>
 </head>
 <body>
@@ -25,16 +25,32 @@
     </section>
 
     <div hidden aria-hidden="true">
-      <span id="liveTimer"></span>
-      <h2 id="currentTitle"></h2>
-      <p id="currentMeta"></p>
-      <button id="currentAction" type="button"></button>
+      <span id="liveTimer"></span><h2 id="currentTitle"></h2><p id="currentMeta"></p><button id="currentAction" type="button"></button>
     </div>
 
     <section class="task-section">
       <div class="section-heading"><div><p class="section-kicker">SCHEDULE</p><h2>今日の予定</h2></div><span class="task-count" id="taskCount">0件</span></div>
       <div class="task-list" id="taskList"></div>
       <p class="empty-state" id="emptyState" hidden>まだ予定がありません。<br>下のボタンから追加しましょう。</p>
+    </section>
+
+    <section class="review-section">
+      <div class="section-heading review-heading">
+        <div><p class="section-kicker">REVIEW</p><h2>振り返り</h2></div>
+        <span class="review-date" id="reviewDateLabel"></span>
+      </div>
+      <div class="review-tabs" role="tablist" aria-label="振り返る期間">
+        <button type="button" data-review-period="today" role="tab">今日</button>
+        <button type="button" data-review-period="yesterday" role="tab" class="active">昨日</button>
+        <button type="button" data-review-period="week" role="tab">過去7日</button>
+      </div>
+      <div class="review-summary" id="reviewSummary">
+        <article class="summary-card"><span>完了</span><strong id="reviewCount">0件</strong></article>
+        <article class="summary-card"><span>実績時間</span><strong id="reviewActual">0分</strong></article>
+        <article class="summary-card"><span>予定との差</span><strong id="reviewDifference">±0分</strong></article>
+      </div>
+      <div class="review-list" id="reviewList"></div>
+      <p class="empty-state compact" id="reviewEmpty">この期間の実績記録はありません。</p>
     </section>
 
     <section class="history-section">
@@ -53,26 +69,10 @@
 
     <dialog class="task-dialog" id="addDialog">
       <form method="dialog" id="addForm">
-        <div class="dialog-head">
-          <div><p class="dialog-kicker">NEW TASK</p><h2>タスクを追加</h2></div>
-          <button class="close-button" type="button" data-close-dialog="addDialog" aria-label="閉じる">×</button>
-        </div>
-        <label class="field-label">タスク名
-          <input id="taskTitle" required maxlength="60" placeholder="例：メールを確認する">
-        </label>
-        <label class="field-label add-start-field">開始時間
-          <input id="taskTime" type="time" value="09:00">
-        </label>
-        <label class="field-label">予定時間
-          <select id="taskDuration">
-            <option value="15">15分</option>
-            <option value="30" selected>30分</option>
-            <option value="45">45分</option>
-            <option value="60">1時間</option>
-            <option value="90">1時間30分</option>
-            <option value="120">2時間</option>
-          </select>
-        </label>
+        <div class="dialog-head"><div><p class="dialog-kicker">NEW TASK</p><h2>タスクを追加</h2></div><button class="close-button" type="button" data-close-dialog="addDialog" aria-label="閉じる">×</button></div>
+        <label class="field-label">タスク名<input id="taskTitle" required maxlength="60" placeholder="例：メールを確認する"></label>
+        <label class="field-label add-start-field">開始時間<input id="taskTime" type="time" value="09:00"></label>
+        <label class="field-label">予定時間<select id="taskDuration"><option value="15">15分</option><option value="30" selected>30分</option><option value="45">45分</option><option value="60">1時間</option><option value="90">1時間30分</option><option value="120">2時間</option></select></label>
         <label class="check-label"><input id="taskRepeat" type="checkbox"><span>毎日の予定にする</span></label>
         <button class="save-button" value="default" type="submit">追加する</button>
       </form>
@@ -80,19 +80,10 @@
 
     <dialog class="task-dialog" id="editDialog">
       <form method="dialog" id="editForm">
-        <div class="dialog-head">
-          <div><p class="dialog-kicker">EDIT TASK</p><h2>タスクを編集</h2></div>
-          <button class="close-button" type="button" data-close-dialog="editDialog" aria-label="閉じる">×</button>
-        </div>
-        <label class="field-label">タスク名
-          <input id="editTitle" required maxlength="60">
-        </label>
-        <label class="field-label">開始時間
-          <input id="editTime" type="time">
-        </label>
-        <label class="field-label">予定時間（分）
-          <input id="editDuration" type="number" min="1" inputmode="numeric">
-        </label>
+        <div class="dialog-head"><div><p class="dialog-kicker">EDIT TASK</p><h2>タスクを編集</h2></div><button class="close-button" type="button" data-close-dialog="editDialog" aria-label="閉じる">×</button></div>
+        <label class="field-label">タスク名<input id="editTitle" required maxlength="60"></label>
+        <label class="field-label">開始時間<input id="editTime" type="time"></label>
+        <label class="field-label">予定時間（分）<input id="editDuration" type="number" min="1" inputmode="numeric"></label>
         <label class="check-label"><input id="editRepeat" type="checkbox"><span>毎日の予定にする</span></label>
         <button class="save-button" value="default" type="submit">変更を保存</button>
       </form>
@@ -100,6 +91,6 @@
 
     <div class="undo-toast" id="undoToast" hidden><span id="undoText">削除しました</span><button id="undoButton" type="button">元に戻す</button></div>
   </main>
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>
