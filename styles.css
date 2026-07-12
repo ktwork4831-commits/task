@@ -26,7 +26,7 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .date-nav>div{text-align:center}
 .date-kicker,.section-kicker,.dialog-kicker{color:var(--accent);font-size:10px;font-weight:800;letter-spacing:.16em;margin:0 0 3px}
 .date-nav h1{font-size:22px;letter-spacing:-.05em;margin:0}
-.progress-card,.task-row,.history-row,.summary-card,.review-row{background:var(--paper);border:1px solid var(--line);box-shadow:var(--shadow)}
+.progress-card,.task-row,.history-row,.summary-card,.review-row,.clock-card{background:var(--paper);border:1px solid var(--line);box-shadow:var(--shadow)}
 .progress-card{border-radius:16px;padding:16px 17px;margin-bottom:24px}
 .progress-head,.progress-foot{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .progress-head{font-size:13px;font-weight:700}
@@ -68,6 +68,32 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .summary-card strong{display:block;font-size:15px;line-height:1.25;overflow-wrap:anywhere}
 .summary-card strong.over{color:var(--danger)}
 .summary-card strong.under{color:var(--green)}
+.clock-card{border-radius:16px;padding:14px;margin-bottom:10px;overflow:hidden}
+.clock-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px}
+.clock-card-head>div{display:grid;gap:2px}
+.clock-card-head strong{font-size:14px}
+.clock-card-head>span{color:var(--muted);font-size:11px;white-space:nowrap}
+.clock-kicker{color:var(--accent);font-size:9px;font-weight:800;letter-spacing:.14em}
+.clock-layout{display:grid;gap:10px;align-items:center}
+.clock-visual{display:grid;place-items:center;min-width:0}
+.review-clock{display:block;width:min(100%,280px);height:auto;overflow:visible}
+.clock-face{fill:none;stroke:#eee8df;stroke-width:20}
+.clock-center{fill:var(--paper);stroke:#eee8df;stroke-width:1}
+.clock-segment{fill:none;stroke-width:17;stroke-linecap:round}
+.clock-tick{stroke:#cfc7bc;stroke-width:1.4}
+.clock-tick.major{stroke:#9f968a;stroke-width:2}
+.clock-number{font-size:11px;fill:var(--muted);font-weight:700}
+.clock-center-label{font-size:11px;fill:var(--muted);font-weight:700}
+.clock-center-value{font-size:20px;fill:var(--ink);font-weight:800}
+.clock-legend{display:grid;gap:7px}
+.clock-legend:empty{display:none}
+.clock-legend-item{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:8px;align-items:center;min-width:0}
+.clock-dot{width:10px;height:10px;border-radius:50%}
+.clock-legend-main{min-width:0}
+.clock-legend-title{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clock-legend-meta{font-size:10px;color:var(--muted);margin-top:2px}
+.clock-legend-time{font-size:11px;font-weight:800;color:var(--green);white-space:nowrap}
+.clock-note{margin:8px 0 0;color:var(--muted);font-size:10px;line-height:1.5}
 .review-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;border-radius:13px;padding:13px 14px}
 .review-main{min-width:0}
 .review-title{font-size:14px;font-weight:800;overflow-wrap:anywhere}
@@ -112,6 +138,11 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
   .review-summary{gap:6px}
   .summary-card{padding:11px 6px}
   .summary-card strong{font-size:14px}
+  .clock-card{padding:12px}
+  .review-clock{width:min(100%,250px)}
+}
+@media(min-width:600px){
+  .clock-layout{grid-template-columns:minmax(250px,290px) minmax(0,1fr);gap:18px}
 }
 @media(min-width:700px){
   .app-shell{width:min(100% - 32px,720px);padding-top:calc(20px + env(safe-area-inset-top));padding-bottom:36px}
