@@ -68,6 +68,17 @@ const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 const tasks = () => [...state.tasks].sort((a, b) => a.time.localeCompare(b.time));
 const find = id => state.tasks.find(t => t.id === id);
 
+function showUndo(message, deleted) {
+  lastDeleted = deleted;
+  $('undoText').textContent = message;
+  $('undoToast').hidden = false;
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(() => {
+    $('undoToast').hidden = true;
+    lastDeleted = null;
+  }, 5000);
+}
+
 function addHistory(task) {
   if (!task || !task.actual || task.historySaved) return;
   state.history.unshift({
@@ -96,11 +107,12 @@ function render() {
   $('completedCount').textContent = `${done} / ${total} 完了`;
   $('remainingTime').textContent = `残り ${durationText(minutes(state.tasks.filter(t => t.status !== 'completed').reduce((sum, t) => sum + Math.max(0, t.planned * 60 - elapsed(t)), 0)))}`;
   $('taskCount').textContent = `${total}件`;
-  $('currentTitle').textContent = running?.title || 'タスクを選んで始めよう';
-  $('currentMeta').textContent = running ? `開始 ${clock(new Date(running.started))} ・ 予定 ${durationText(running.planned)}` : 'ひとつずつ、目の前のことに集中';
+  $('currentTitle').textContent = running?.title || '';
+  $('currentTitle').hidden = !running;
+  $('currentMeta').textContent = running ? `開始 ${clock(new Date(running.started))} ・ 予定 ${durationText(running.planned)}` : '実行中のタスクはありません';
   $('liveTimer').textContent = running ? formatTimer(elapsed(running)) : '00:00';
   $('currentAction').disabled = !running;
-  $('currentAction').textContent = running ? '完了にする' : 'タスクを始める';
+  $('currentAction').textContent = running ? '完了にする' : '開始中のタスクなし';
   $('emptyState').hidden = list.length > 0;
 
   $('taskList').innerHTML = list.map(task => `
@@ -121,9 +133,19 @@ function render() {
   const history = state.history || [];
   $('historyCount').textContent = `${history.length}件`;
   $('historyEmpty').hidden = history.length > 0;
+  $('clearHistoryButton').hidden = history.length === 0;
   $('historyList').innerHTML = history.map(item => {
     const date = new Date(item.completedAt);
-    return `<article class="history-row"><div class="history-main"><div class="history-title">${escapeHtml(item.title)}</div><div class="history-meta">${date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })} ${clock(date)} ・ 予定 ${durationText(item.planned)}</div></div><div class="history-time">${actualText(item.actual)}</div></article>`;
+    return `<article class="history-row" data-history-id="${item.id}">
+      <div class="history-main">
+        <div class="history-title">${escapeHtml(item.title)}</div>
+        <div class="history-meta">${date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })} ${clock(date)} ・ 予定 ${durationText(item.planned)}</div>
+      </div>
+      <div class="history-side">
+        <div class="history-time">${actualText(item.actual)}</div>
+        <button class="history-delete-button" data-action="delete-history" type="button" aria-label="この実績を削除">削除</button>
+      </div>
+    </article>`;
   }).join('');
 
   save();
@@ -184,16 +206,17 @@ function openEdit(task) {
 function remove(task) {
   if (!task) return;
   const index = state.tasks.findIndex(t => t.id === task.id);
-  lastDeleted = { task: { ...task }, index };
   state.tasks.splice(index, 1);
   if (runningId === task.id) runningId = null;
-  $('undoText').textContent = `「${task.title}」を削除しました`;
-  $('undoToast').hidden = false;
-  clearTimeout(undoTimer);
-  undoTimer = setTimeout(() => {
-    $('undoToast').hidden = true;
-    lastDeleted = null;
-  }, 5000);
+  showUndo(`「${task.title}」を削除しました`, { type: 'task', item: { ...task }, index });
+  render();
+}
+
+function removeHistory(id) {
+  const index = state.history.findIndex(item => item.id === id);
+  if (index < 0) return;
+  const [item] = state.history.splice(index, 1);
+  showUndo(`「${item.title}」の実績を削除しました`, { type: 'history', item: { ...item }, index });
   render();
 }
 
@@ -206,6 +229,19 @@ $('taskList').addEventListener('click', e => {
   if (action === 'toggle') toggleComplete(task);
   if (action === 'edit') openEdit(task);
   if (action === 'delete') remove(task);
+});
+
+$('historyList').addEventListener('click', e => {
+  const button = e.target.closest('[data-action="delete-history"]');
+  if (!button) return;
+  removeHistory(button.closest('.history-row')?.dataset.historyId);
+});
+
+$('clearHistoryButton').addEventListener('click', () => {
+  if (!state.history.length) return;
+  if (!confirm('実績記録をすべて削除しますか？')) return;
+  state.history = [];
+  render();
 });
 
 $('editForm').addEventListener('submit', e => {
@@ -225,7 +261,8 @@ $('editForm').addEventListener('submit', e => {
 
 $('undoButton').addEventListener('click', () => {
   if (!lastDeleted) return;
-  state.tasks.splice(lastDeleted.index, 0, lastDeleted.task);
+  if (lastDeleted.type === 'task') state.tasks.splice(lastDeleted.index, 0, lastDeleted.item);
+  if (lastDeleted.type === 'history') state.history.splice(lastDeleted.index, 0, lastDeleted.item);
   lastDeleted = null;
   $('undoToast').hidden = true;
   clearTimeout(undoTimer);
