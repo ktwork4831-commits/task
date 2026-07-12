@@ -232,6 +232,13 @@ $('undoButton').addEventListener('click', () => {
   render();
 });
 
+document.querySelectorAll('[data-close-dialog]').forEach(button => {
+  button.addEventListener('click', () => {
+    const dialog = $(button.dataset.closeDialog);
+    if (dialog?.open) dialog.close('cancel');
+  });
+});
+
 $('currentAction').addEventListener('click', () => runningId && finish(runningId));
 $('openAdd').addEventListener('click', () => $('addDialog').showModal());
 $('addForm').addEventListener('submit', e => {
