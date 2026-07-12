@@ -1,12 +1,19 @@
 const STORAGE_KEY = 'today-task-v3';
 const OLD_STORAGE_KEY = 'today-task-v2';
 
-const todayKey = () => {
-  const d = new Date();
+const dateKey = date => {
+  const d = new Date(date);
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+};
+const todayKey = () => dateKey(new Date());
+const shiftedDate = days => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + days);
+  return d;
 };
 
 const seed = [
@@ -24,6 +31,7 @@ const escapeHtml = value => String(value).replace(/[&<>'"]/g, c => ({ '&':'&amp;
 const minutes = seconds => Math.max(0, Math.round(seconds / 60));
 const durationText = value => value >= 60 ? `${Math.floor(value / 60)}時間${value % 60 ? ` ${value % 60}分` : ''}` : `${value}分`;
 const actualText = seconds => seconds < 60 ? `${seconds}秒` : durationText(minutes(seconds));
+const signedMinutes = value => value === 0 ? '±0分' : `${value > 0 ? '+' : '−'}${durationText(Math.abs(value))}`;
 const clock = d => d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 const elapsed = task => (task.actual || 0) + (task.status === 'running' && task.started ? Math.floor((Date.now() - task.started) / 1000) : 0);
 const makeTask = data => ({
@@ -63,10 +71,12 @@ let runningId = state.tasks.find(t => t.status === 'running')?.id || null;
 let editingId = null;
 let lastDeleted = null;
 let undoTimer = null;
+let reviewPeriod = 'yesterday';
 
 const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 const tasks = () => [...state.tasks].sort((a, b) => a.time.localeCompare(b.time));
 const find = id => state.tasks.find(t => t.id === id);
+const historyDateKey = item => item.date || dateKey(new Date(item.completedAt));
 
 function showUndo(message, deleted) {
   lastDeleted = deleted;
@@ -94,6 +104,67 @@ function addHistory(task) {
   task.historySaved = true;
 }
 
+function reviewItems() {
+  const history = state.history || [];
+  if (reviewPeriod === 'today') {
+    const key = todayKey();
+    return history.filter(item => historyDateKey(item) === key);
+  }
+  if (reviewPeriod === 'yesterday') {
+    const key = dateKey(shiftedDate(-1));
+    return history.filter(item => historyDateKey(item) === key);
+  }
+  const start = shiftedDate(-6);
+  const end = shiftedDate(1);
+  return history.filter(item => {
+    const completed = new Date(item.completedAt);
+    return completed >= start && completed < end;
+  });
+}
+
+function renderReview() {
+  const items = reviewItems();
+  const plannedMinutes = items.reduce((sum, item) => sum + Number(item.planned || 0), 0);
+  const actualSeconds = items.reduce((sum, item) => sum + Number(item.actual || 0), 0);
+  const actualMinutes = minutes(actualSeconds);
+  const difference = actualMinutes - plannedMinutes;
+
+  $('reviewCount').textContent = `${items.length}件`;
+  $('reviewActual').textContent = durationText(actualMinutes);
+  $('reviewDifference').textContent = signedMinutes(difference);
+  $('reviewDifference').className = difference > 0 ? 'over' : difference < 0 ? 'under' : '';
+  $('reviewEmpty').hidden = items.length > 0;
+
+  const labels = {
+    today: new Date().toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' }),
+    yesterday: shiftedDate(-1).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' }),
+    week: `${shiftedDate(-6).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}〜${new Date().toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}`
+  };
+  $('reviewDateLabel').textContent = labels[reviewPeriod];
+
+  document.querySelectorAll('[data-review-period]').forEach(button => {
+    const active = button.dataset.reviewPeriod === reviewPeriod;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', String(active));
+  });
+
+  $('reviewList').innerHTML = items.map(item => {
+    const itemActualMinutes = minutes(item.actual || 0);
+    const itemDifference = itemActualMinutes - Number(item.planned || 0);
+    const completed = new Date(item.completedAt);
+    return `<article class="review-row">
+      <div class="review-main">
+        <div class="review-title">${escapeHtml(item.title)}</div>
+        <div class="review-meta">${completed.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })} ${clock(completed)} ・ 予定 ${durationText(item.planned)}</div>
+      </div>
+      <div class="review-result">
+        <div class="review-actual">${actualText(item.actual)}</div>
+        <div class="review-diff ${itemDifference > 0 ? 'over' : itemDifference < 0 ? 'under' : ''}">${signedMinutes(itemDifference)}</div>
+      </div>
+    </article>`;
+  }).join('');
+}
+
 function render() {
   const list = tasks();
   const running = runningId ? find(runningId) : null;
@@ -108,11 +179,9 @@ function render() {
   $('remainingTime').textContent = `残り ${durationText(minutes(state.tasks.filter(t => t.status !== 'completed').reduce((sum, t) => sum + Math.max(0, t.planned * 60 - elapsed(t)), 0)))}`;
   $('taskCount').textContent = `${total}件`;
   $('currentTitle').textContent = running?.title || '';
-  $('currentTitle').hidden = !running;
-  $('currentMeta').textContent = running ? `開始 ${clock(new Date(running.started))} ・ 予定 ${durationText(running.planned)}` : '実行中のタスクはありません';
+  $('currentMeta').textContent = running ? `開始 ${clock(new Date(running.started))} ・ 予定 ${durationText(running.planned)}` : '';
   $('liveTimer').textContent = running ? formatTimer(elapsed(running)) : '00:00';
   $('currentAction').disabled = !running;
-  $('currentAction').textContent = running ? '完了にする' : '開始中のタスクなし';
   $('emptyState').hidden = list.length > 0;
 
   $('taskList').innerHTML = list.map(task => `
@@ -130,6 +199,8 @@ function render() {
       </div>
     </article>`).join('');
 
+  renderReview();
+
   const history = state.history || [];
   $('historyCount').textContent = `${history.length}件`;
   $('historyEmpty').hidden = history.length > 0;
@@ -137,14 +208,8 @@ function render() {
   $('historyList').innerHTML = history.map(item => {
     const date = new Date(item.completedAt);
     return `<article class="history-row" data-history-id="${item.id}">
-      <div class="history-main">
-        <div class="history-title">${escapeHtml(item.title)}</div>
-        <div class="history-meta">${date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })} ${clock(date)} ・ 予定 ${durationText(item.planned)}</div>
-      </div>
-      <div class="history-side">
-        <div class="history-time">${actualText(item.actual)}</div>
-        <button class="history-delete-button" data-action="delete-history" type="button" aria-label="この実績を削除">削除</button>
-      </div>
+      <div class="history-main"><div class="history-title">${escapeHtml(item.title)}</div><div class="history-meta">${date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })} ${clock(date)} ・ 予定 ${durationText(item.planned)}</div></div>
+      <div class="history-side"><div class="history-time">${actualText(item.actual)}</div><button class="history-delete-button" data-action="delete-history" type="button" aria-label="この実績を削除">削除</button></div>
     </article>`;
   }).join('');
 
@@ -155,9 +220,7 @@ function formatTimer(seconds) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor(seconds % 3600 / 60);
   const s = seconds % 60;
-  return h
-    ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-    : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return h ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
 function start(id) {
@@ -186,10 +249,7 @@ function toggleComplete(task) {
   if (!task) return;
   if (task.status === 'running') return finish(task.id);
   if (task.status === 'completed') task.status = 'pending';
-  else {
-    task.status = 'completed';
-    task.completedAt = Date.now();
-  }
+  else { task.status = 'completed'; task.completedAt = Date.now(); }
   render();
 }
 
@@ -237,6 +297,13 @@ $('historyList').addEventListener('click', e => {
   removeHistory(button.closest('.history-row')?.dataset.historyId);
 });
 
+document.querySelectorAll('[data-review-period]').forEach(button => {
+  button.addEventListener('click', () => {
+    reviewPeriod = button.dataset.reviewPeriod;
+    renderReview();
+  });
+});
+
 $('clearHistoryButton').addEventListener('click', () => {
   if (!state.history.length) return;
   if (!confirm('実績記録をすべて削除しますか？')) return;
@@ -282,12 +349,7 @@ $('addForm').addEventListener('submit', e => {
   e.preventDefault();
   const title = $('taskTitle').value.trim();
   if (!title) return;
-  state.tasks.push(makeTask({
-    title,
-    time: $('taskTime').value,
-    planned: $('taskDuration').value,
-    repeat: $('taskRepeat').checked
-  }));
+  state.tasks.push(makeTask({ title, time: $('taskTime').value, planned: $('taskDuration').value, repeat: $('taskRepeat').checked }));
   $('addDialog').close();
   e.target.reset();
   $('taskTime').value = '09:00';
@@ -308,12 +370,8 @@ $('resetButton').addEventListener('click', () => {
   render();
 });
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(registrations => registrations.forEach(registration => registration.unregister()));
-}
-if ('caches' in window) {
-  caches.keys().then(keys => keys.forEach(key => caches.delete(key)));
-}
+if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(registrations => registrations.forEach(registration => registration.unregister()));
+if ('caches' in window) caches.keys().then(keys => keys.forEach(key => caches.delete(key)));
 
 setInterval(render, 1000);
 render();
