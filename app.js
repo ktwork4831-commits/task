@@ -1,5 +1,12 @@
-const STORAGE_KEY = 'today-task-v2';
-const todayKey = () => { const d = new Date(); return d.toISOString().slice(0, 10); };
+const STORAGE_KEY = 'today-task-v3';
+const OLD_STORAGE_KEY = 'today-task-v2';
+const todayKey = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 const seed = [
   { title: '朝のルーティン', time: '07:00', planned: 30, repeat: true },
   { title: 'メールを確認する', time: '09:00', planned: 30, repeat: true },
@@ -13,17 +20,48 @@ const uid = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const escapeHtml = value => String(value).replace(/[&<>'"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[c]));
 const minutes = seconds => Math.max(0, Math.round(seconds / 60));
 const durationText = value => value >= 60 ? `${Math.floor(value / 60)}時間${value % 60 ? ` ${value % 60}分` : ''}` : `${value}分`;
+const actualText = seconds => seconds < 60 ? `${seconds}秒` : durationText(minutes(seconds));
 const clock = d => d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-const elapsed = task => task.actual + (task.status === 'running' ? Math.floor((Date.now() - task.started) / 1000) : 0);
-const makeTask = data => ({ id: uid(), title: data.title, time: data.time || '09:00', planned: Number(data.planned) || 30, repeat: !!data.repeat, status: 'pending', started: null, actual: 0 });
+const elapsed = task => (task.actual || 0) + (task.status === 'running' && task.started ? Math.floor((Date.now() - task.started) / 1000) : 0);
+const makeTask = data => ({ id: uid(), title: data.title, time: data.time || '09:00', planned: Number(data.planned) || 30, repeat: !!data.repeat, status: 'pending', started: null, actual: 0, completedAt: null });
 
-function load() { try { const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)); if (saved?.tasks) return saved; } catch (_) {} return { date: todayKey(), tasks: seed.map(makeTask) }; }
+function load() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (saved?.tasks) return { ...saved, history: Array.isArray(saved.history) ? saved.history : [] };
+    const old = JSON.parse(localStorage.getItem(OLD_STORAGE_KEY));
+    if (old?.tasks) return { ...old, history: [] };
+  } catch (_) {}
+  return { date: todayKey(), tasks: seed.map(makeTask), history: [] };
+}
+
 let state = load();
-if (state.date !== todayKey()) { state = { date: todayKey(), tasks: state.tasks.filter(t => t.repeat).map(t => ({ ...t, id: uid(), status: 'pending', started: null, actual: 0 })) }; }
+if (state.date !== todayKey()) {
+  state = {
+    date: todayKey(),
+    history: state.history || [],
+    tasks: state.tasks.filter(t => t.repeat).map(t => ({ ...t, id: uid(), status: 'pending', started: null, actual: 0, completedAt: null }))
+  };
+}
 let runningId = state.tasks.find(t => t.status === 'running')?.id || null;
 const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 const tasks = () => [...state.tasks].sort((a, b) => a.time.localeCompare(b.time));
 const find = id => state.tasks.find(t => t.id === id);
+
+function addHistory(task) {
+  if (!task || !task.actual || task.historySaved) return;
+  state.history.unshift({
+    id: uid(),
+    taskId: task.id,
+    title: task.title,
+    date: state.date,
+    planned: task.planned,
+    actual: task.actual,
+    completedAt: task.completedAt || Date.now()
+  });
+  state.history = state.history.slice(0, 100);
+  task.historySaved = true;
+}
 
 function render() {
   const list = tasks();
@@ -39,7 +77,7 @@ function render() {
   $('remainingTime').textContent = `残り ${durationText(minutes(state.tasks.filter(t => t.status !== 'completed').reduce((sum, t) => sum + Math.max(0, t.planned * 60 - elapsed(t)), 0)))}`;
   $('taskCount').textContent = `${total}件`;
   $('currentTitle').textContent = running?.title || 'タスクを選んで始めよう';
-  $('currentMeta').textContent = running ? `開始 ${clock(new Date(running.started))} ・ ${durationText(running.planned)}予定` : 'ひとつずつ、目の前のことに集中';
+  $('currentMeta').textContent = running ? `開始 ${clock(new Date(running.started))} ・ 予定 ${durationText(running.planned)}` : 'ひとつずつ、目の前のことに集中';
   $('liveTimer').textContent = running ? formatTimer(elapsed(running)) : '00:00';
   $('currentAction').disabled = !running;
   $('currentAction').textContent = running ? '完了にする' : 'タスクを始める';
@@ -52,7 +90,8 @@ function render() {
       </button>
       <div class="task-body">
         <div class="task-title">${escapeHtml(task.title)}</div>
-        <div class="task-meta">${task.time} ・ ${durationText(task.planned)}${task.repeat ? ' ・ 毎日' : ''}</div>
+        <div class="task-meta">${task.time} ・ 予定 ${durationText(task.planned)}${task.repeat ? ' ・ 毎日' : ''}</div>
+        ${task.actual ? `<div class="task-actual">実績 ${actualText(elapsed(task))}</div>` : ''}
         <div class="task-actions">
           <button class="task-action start-button" data-action="start" type="button">${task.status === 'running' ? '停止して完了' : '開始'}</button>
           <button class="task-action edit-button" data-action="edit" type="button">編集</button>
@@ -60,6 +99,16 @@ function render() {
         </div>
       </div>
     </article>`).join('');
+
+  const history = state.history || [];
+  $('historyCount').textContent = `${history.length}件`;
+  $('historyEmpty').hidden = history.length > 0;
+  $('historyList').innerHTML = history.map(item => {
+    const date = new Date(item.completedAt);
+    const label = date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
+    const time = clock(date);
+    return `<article class="history-row"><div class="history-main"><div class="history-title">${escapeHtml(item.title)}</div><div class="history-meta">${label} ${time} ・ 予定 ${durationText(item.planned)}</div></div><div class="history-time">${actualText(item.actual)}</div></article>`;
+  }).join('');
   save();
 }
 
@@ -83,22 +132,21 @@ function finish(id) {
   if (!task || task.status !== 'running') return;
   task.actual = elapsed(task);
   task.status = 'completed';
+  task.completedAt = Date.now();
   task.started = null;
   runningId = null;
+  addHistory(task);
   render();
 }
 
 function toggleComplete(task) {
   if (!task) return;
-  if (task.status === 'running') {
-    finish(task.id);
-    return;
-  }
+  if (task.status === 'running') return finish(task.id);
   if (task.status === 'completed') {
     task.status = 'pending';
-    task.actual = 0;
   } else {
     task.status = 'completed';
+    task.completedAt = Date.now();
   }
   render();
 }
@@ -114,8 +162,7 @@ function edit(task) {
 }
 
 function remove(task) {
-  if (!task) return;
-  if (!confirm(`「${task.title}」を削除しますか？`)) return;
+  if (!task || !confirm(`「${task.title}」を削除しますか？`)) return;
   state.tasks = state.tasks.filter(t => t.id !== task.id);
   if (runningId === task.id) runningId = null;
   render();
@@ -127,7 +174,6 @@ $('taskList').addEventListener('click', e => {
   const row = button.closest('.task-row');
   const task = row ? find(row.dataset.id) : null;
   const action = button.dataset.action;
-
   if (action === 'start') task?.status === 'running' ? finish(task.id) : start(task?.id);
   if (action === 'toggle') toggleComplete(task);
   if (action === 'edit') edit(task);
@@ -148,8 +194,8 @@ $('addForm').addEventListener('submit', e => {
   render();
 });
 $('resetButton').addEventListener('click', () => {
-  if (!confirm('今日の進捗をリセットしますか？')) return;
-  state.tasks.forEach(t => { t.status = 'pending'; t.started = null; t.actual = 0; });
+  if (!confirm('今日の進捗をリセットしますか？ 実績記録は残ります。')) return;
+  state.tasks.forEach(t => { t.status = 'pending'; t.started = null; t.actual = 0; t.completedAt = null; t.historySaved = false; });
   runningId = null;
   render();
 });
