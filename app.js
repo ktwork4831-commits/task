@@ -44,21 +44,16 @@ if (state.date !== todayKey()) {
   };
 }
 let runningId = state.tasks.find(t => t.status === 'running')?.id || null;
+let editingId = null;
+let lastDeleted = null;
+let undoTimer = null;
 const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 const tasks = () => [...state.tasks].sort((a, b) => a.time.localeCompare(b.time));
 const find = id => state.tasks.find(t => t.id === id);
 
 function addHistory(task) {
   if (!task || !task.actual || task.historySaved) return;
-  state.history.unshift({
-    id: uid(),
-    taskId: task.id,
-    title: task.title,
-    date: state.date,
-    planned: task.planned,
-    actual: task.actual,
-    completedAt: task.completedAt || Date.now()
-  });
+  state.history.unshift({ id: uid(), taskId: task.id, title: task.title, date: state.date, planned: task.planned, actual: task.actual, completedAt: task.completedAt || Date.now() });
   state.history = state.history.slice(0, 100);
   task.historySaved = true;
 }
@@ -85,15 +80,13 @@ function render() {
 
   $('taskList').innerHTML = list.map(task => `
     <article class="task-row ${task.status}" data-id="${task.id}">
-      <button class="task-status" data-action="toggle" type="button" aria-label="${task.status === 'completed' ? '未完了に戻す' : '完了にする'}">
-        ${task.status === 'completed' ? '✓' : task.status === 'running' ? '●' : ''}
-      </button>
+      <button class="task-status" data-action="toggle" type="button" aria-label="${task.status === 'completed' ? '未完了に戻す' : '完了にする'}">${task.status === 'completed' ? '✓' : task.status === 'running' ? '●' : ''}</button>
       <div class="task-body">
         <div class="task-title">${escapeHtml(task.title)}</div>
         <div class="task-meta">${task.time} ・ 予定 ${durationText(task.planned)}${task.repeat ? ' ・ 毎日' : ''}</div>
         ${task.actual ? `<div class="task-actual">実績 ${actualText(elapsed(task))}</div>` : ''}
         <div class="task-actions">
-          <button class="task-action start-button" data-action="start" type="button">${task.status === 'running' ? '停止して完了' : '開始'}</button>
+          <button class="task-action start-button" data-action="start" type="button">${task.status === 'running' ? '完了' : '開始'}</button>
           <button class="task-action edit-button" data-action="edit" type="button">編集</button>
           <button class="task-action delete-button" data-action="delete" type="button">削除</button>
         </div>
@@ -105,9 +98,7 @@ function render() {
   $('historyEmpty').hidden = history.length > 0;
   $('historyList').innerHTML = history.map(item => {
     const date = new Date(item.completedAt);
-    const label = date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
-    const time = clock(date);
-    return `<article class="history-row"><div class="history-main"><div class="history-title">${escapeHtml(item.title)}</div><div class="history-meta">${label} ${time} ・ 予定 ${durationText(item.planned)}</div></div><div class="history-time">${actualText(item.actual)}</div></article>`;
+    return `<article class="history-row"><div class="history-main"><div class="history-title">${escapeHtml(item.title)}</div><div class="history-meta">${date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })} ${clock(date)} ・ 予定 ${durationText(item.planned)}</div></div><div class="history-time">${actualText(item.actual)}</div></article>`;
   }).join('');
   save();
 }
@@ -142,42 +133,67 @@ function finish(id) {
 function toggleComplete(task) {
   if (!task) return;
   if (task.status === 'running') return finish(task.id);
-  if (task.status === 'completed') {
-    task.status = 'pending';
-  } else {
-    task.status = 'completed';
-    task.completedAt = Date.now();
-  }
+  if (task.status === 'completed') task.status = 'pending';
+  else { task.status = 'completed'; task.completedAt = Date.now(); }
   render();
 }
 
-function edit(task) {
-  const title = prompt('タスク名', task.title);
-  if (!title?.trim()) return;
-  const planned = Number(prompt('予定時間（分）', task.planned));
-  if (!Number.isFinite(planned) || planned <= 0) return;
-  task.title = title.trim();
-  task.planned = planned;
-  render();
+function openEdit(task) {
+  if (!task) return;
+  editingId = task.id;
+  $('editTitle').value = task.title;
+  $('editTime').value = task.time;
+  $('editDuration').value = task.planned;
+  $('editRepeat').checked = task.repeat;
+  $('editDialog').showModal();
 }
 
 function remove(task) {
-  if (!task || !confirm(`「${task.title}」を削除しますか？`)) return;
-  state.tasks = state.tasks.filter(t => t.id !== task.id);
+  if (!task) return;
+  const index = state.tasks.findIndex(t => t.id === task.id);
+  lastDeleted = { task: { ...task }, index };
+  state.tasks.splice(index, 1);
   if (runningId === task.id) runningId = null;
+  $('undoText').textContent = `「${task.title}」を削除しました`;
+  $('undoToast').hidden = false;
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(() => { $('undoToast').hidden = true; lastDeleted = null; }, 5000);
   render();
 }
 
 $('taskList').addEventListener('click', e => {
   const button = e.target.closest('button');
   if (!button) return;
-  const row = button.closest('.task-row');
-  const task = row ? find(row.dataset.id) : null;
+  const task = find(button.closest('.task-row')?.dataset.id);
   const action = button.dataset.action;
   if (action === 'start') task?.status === 'running' ? finish(task.id) : start(task?.id);
   if (action === 'toggle') toggleComplete(task);
-  if (action === 'edit') edit(task);
+  if (action === 'edit') openEdit(task);
   if (action === 'delete') remove(task);
+});
+
+$('editForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const task = find(editingId);
+  const title = $('editTitle').value.trim();
+  const planned = Number($('editDuration').value);
+  if (!task || !title || !Number.isFinite(planned) || planned <= 0) return;
+  task.title = title;
+  task.time = $('editTime').value || '09:00';
+  task.planned = planned;
+  task.repeat = $('editRepeat').checked;
+  $('editDialog').close();
+  editingId = null;
+  render();
+});
+
+$('undoButton').addEventListener('click', () => {
+  if (!lastDeleted) return;
+  state.tasks.splice(lastDeleted.index, 0, lastDeleted.task);
+  lastDeleted = null;
+  $('undoToast').hidden = true;
+  clearTimeout(undoTimer);
+  render();
 });
 
 $('currentAction').addEventListener('click', () => runningId && finish(runningId));
@@ -199,5 +215,8 @@ $('resetButton').addEventListener('click', () => {
   runningId = null;
   render();
 });
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(registrations => registrations.forEach(registration => registration.unregister()));
+if ('caches' in window) caches.keys().then(keys => keys.forEach(key => caches.delete(key)));
 setInterval(render, 1000);
 render();
