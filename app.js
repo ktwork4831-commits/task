@@ -25,6 +25,7 @@ const seed = [
   { title: '今日の振り返り', time: '18:00', planned: 15, repeat: true }
 ];
 
+const CLOCK_COLORS = ['#e56f51','#5f8c74','#c68a3b','#6b7fd7','#9c6ade','#5ea3a3','#d96d83','#8c7a64'];
 const $ = id => document.getElementById(id);
 const uid = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const escapeHtml = value => String(value).replace(/[&<>'"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[c]));
@@ -61,9 +62,7 @@ if (state.date !== todayKey()) {
   state = {
     date: todayKey(),
     history: state.history || [],
-    tasks: state.tasks
-      .filter(t => t.repeat)
-      .map(t => ({ ...t, id: uid(), status: 'pending', started: null, actual: 0, completedAt: null }))
+    tasks: state.tasks.filter(t => t.repeat).map(t => ({ ...t, id: uid(), status: 'pending', started: null, actual: 0, completedAt: null }))
   };
 }
 
@@ -122,6 +121,72 @@ function reviewItems() {
   });
 }
 
+function polarPoint(radius, minuteValue) {
+  const angle = minuteValue / 1440 * Math.PI * 2 - Math.PI / 2;
+  return { x: 130 + Math.cos(angle) * radius, y: 130 + Math.sin(angle) * radius };
+}
+
+function arcPath(startMinute, endMinute) {
+  const start = polarPoint(92, startMinute);
+  const end = polarPoint(92, endMinute);
+  const span = endMinute - startMinute;
+  return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A 92 92 0 ${span > 720 ? 1 : 0} 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
+}
+
+function renderClockTicks() {
+  const target = $('clockTicks');
+  if (!target || target.childElementCount) return;
+  target.innerHTML = Array.from({ length: 24 }, (_, hour) => {
+    const outer = polarPoint(104, hour * 60);
+    const inner = polarPoint(hour % 6 === 0 ? 96 : 99, hour * 60);
+    return `<line class="clock-tick ${hour % 6 === 0 ? 'major' : ''}" x1="${inner.x.toFixed(2)}" y1="${inner.y.toFixed(2)}" x2="${outer.x.toFixed(2)}" y2="${outer.y.toFixed(2)}"></line>`;
+  }).join('');
+}
+
+function renderClock(items) {
+  renderClockTicks();
+  const segmentTarget = $('clockSegments');
+  const legendTarget = $('clockLegend');
+  const center = $('clockCenterValue');
+  const count = $('clockItemCount');
+  if (!segmentTarget || !legendTarget || !center || !count) return;
+
+  const sorted = [...items].sort((a, b) => Number(a.completedAt) - Number(b.completedAt)).slice(-8);
+  center.textContent = durationText(minutes(sorted.reduce((sum, item) => sum + Number(item.actual || 0), 0)));
+  count.textContent = sorted.length ? `${sorted.length}件を表示` : '記録なし';
+
+  if (!sorted.length) {
+    segmentTarget.innerHTML = '';
+    legendTarget.innerHTML = '<div class="clock-legend-meta">実績がたまると、作業した時間帯がここに表示されます。</div>';
+    return;
+  }
+
+  segmentTarget.innerHTML = sorted.map((item, index) => {
+    const completed = new Date(item.completedAt);
+    const endMinute = completed.getHours() * 60 + completed.getMinutes() + completed.getSeconds() / 60;
+    const duration = Math.max(1, Math.min(1439, Number(item.actual || 0) / 60));
+    let startMinute = endMinute - duration;
+    const color = CLOCK_COLORS[index % CLOCK_COLORS.length];
+    if (startMinute < 0) {
+      return `<path class="clock-segment" stroke="${color}" d="${arcPath(0, endMinute)}"></path><path class="clock-segment" stroke="${color}" d="${arcPath(1440 + startMinute, 1439.9)}"></path>`;
+    }
+    return `<path class="clock-segment" stroke="${color}" d="${arcPath(startMinute, endMinute)}"></path>`;
+  }).join('');
+
+  legendTarget.innerHTML = sorted.map((item, index) => {
+    const completed = new Date(item.completedAt);
+    const endMinute = completed.getHours() * 60 + completed.getMinutes();
+    const duration = Math.max(1, minutes(item.actual || 0));
+    const startMinute = (endMinute - duration + 1440) % 1440;
+    const label = value => `${String(Math.floor(value / 60)).padStart(2,'0')}:${String(value % 60).padStart(2,'0')}`;
+    return `<div class="clock-legend-item">
+      <span class="clock-dot" style="background:${CLOCK_COLORS[index % CLOCK_COLORS.length]}"></span>
+      <div class="clock-legend-main"><div class="clock-legend-title">${escapeHtml(item.title)}</div><div class="clock-legend-meta">${label(startMinute)}〜${label(endMinute)}</div></div>
+      <span class="clock-legend-time">${actualText(item.actual)}</span>
+    </div>`;
+  }).join('');
+}
+
 function renderReview() {
   const items = reviewItems();
   const plannedMinutes = items.reduce((sum, item) => sum + Number(item.planned || 0), 0);
@@ -148,19 +213,15 @@ function renderReview() {
     button.setAttribute('aria-selected', String(active));
   });
 
+  renderClock(items);
+
   $('reviewList').innerHTML = items.map(item => {
     const itemActualMinutes = minutes(item.actual || 0);
     const itemDifference = itemActualMinutes - Number(item.planned || 0);
     const completed = new Date(item.completedAt);
     return `<article class="review-row">
-      <div class="review-main">
-        <div class="review-title">${escapeHtml(item.title)}</div>
-        <div class="review-meta">${completed.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })} ${clock(completed)} ・ 予定 ${durationText(item.planned)}</div>
-      </div>
-      <div class="review-result">
-        <div class="review-actual">${actualText(item.actual)}</div>
-        <div class="review-diff ${itemDifference > 0 ? 'over' : itemDifference < 0 ? 'under' : ''}">${signedMinutes(itemDifference)}</div>
-      </div>
+      <div class="review-main"><div class="review-title">${escapeHtml(item.title)}</div><div class="review-meta">${completed.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })} ${clock(completed)} ・ 予定 ${durationText(item.planned)}</div></div>
+      <div class="review-result"><div class="review-actual">${actualText(item.actual)}</div><div class="review-diff ${itemDifference > 0 ? 'over' : itemDifference < 0 ? 'under' : ''}">${signedMinutes(itemDifference)}</div></div>
     </article>`;
   }).join('');
 }
@@ -191,10 +252,7 @@ function render() {
         <div class="task-title">${escapeHtml(task.title)}</div>
         <div class="task-meta">${task.time} ・ 予定 ${durationText(task.planned)}${task.repeat ? ' ・ 毎日' : ''}</div>
         ${task.actual ? `<div class="task-actual">実績 ${actualText(elapsed(task))}</div>` : ''}
-        <div class="task-tools">
-          <button class="tool-button edit-button" data-action="edit" type="button">編集</button>
-          <button class="tool-button delete-button" data-action="delete" type="button">削除</button>
-        </div>
+        <div class="task-tools"><button class="tool-button edit-button" data-action="edit" type="button">編集</button><button class="tool-button delete-button" data-action="delete" type="button">削除</button></div>
         <button class="run-button" data-action="start" type="button">${task.status === 'running' ? '完了する' : '開始する'}</button>
       </div>
     </article>`).join('');
