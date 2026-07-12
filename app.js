@@ -1,5 +1,6 @@
 const STORAGE_KEY = 'today-task-v3';
 const OLD_STORAGE_KEY = 'today-task-v2';
+
 const todayKey = () => {
   const d = new Date();
   const y = d.getFullYear();
@@ -7,6 +8,7 @@ const todayKey = () => {
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 };
+
 const seed = [
   { title: '朝のルーティン', time: '07:00', planned: 30, repeat: true },
   { title: 'メールを確認する', time: '09:00', planned: 30, repeat: true },
@@ -15,6 +17,7 @@ const seed = [
   { title: '集中して作業する', time: '13:00', planned: 120, repeat: false },
   { title: '今日の振り返り', time: '18:00', planned: 15, repeat: true }
 ];
+
 const $ = id => document.getElementById(id);
 const uid = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const escapeHtml = value => String(value).replace(/[&<>'"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[c]));
@@ -23,7 +26,17 @@ const durationText = value => value >= 60 ? `${Math.floor(value / 60)}時間${va
 const actualText = seconds => seconds < 60 ? `${seconds}秒` : durationText(minutes(seconds));
 const clock = d => d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 const elapsed = task => (task.actual || 0) + (task.status === 'running' && task.started ? Math.floor((Date.now() - task.started) / 1000) : 0);
-const makeTask = data => ({ id: uid(), title: data.title, time: data.time || '09:00', planned: Number(data.planned) || 30, repeat: !!data.repeat, status: 'pending', started: null, actual: 0, completedAt: null });
+const makeTask = data => ({
+  id: uid(),
+  title: data.title,
+  time: data.time || '09:00',
+  planned: Number(data.planned) || 30,
+  repeat: !!data.repeat,
+  status: 'pending',
+  started: null,
+  actual: 0,
+  completedAt: null
+});
 
 function load() {
   try {
@@ -40,20 +53,32 @@ if (state.date !== todayKey()) {
   state = {
     date: todayKey(),
     history: state.history || [],
-    tasks: state.tasks.filter(t => t.repeat).map(t => ({ ...t, id: uid(), status: 'pending', started: null, actual: 0, completedAt: null }))
+    tasks: state.tasks
+      .filter(t => t.repeat)
+      .map(t => ({ ...t, id: uid(), status: 'pending', started: null, actual: 0, completedAt: null }))
   };
 }
+
 let runningId = state.tasks.find(t => t.status === 'running')?.id || null;
 let editingId = null;
 let lastDeleted = null;
 let undoTimer = null;
+
 const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 const tasks = () => [...state.tasks].sort((a, b) => a.time.localeCompare(b.time));
 const find = id => state.tasks.find(t => t.id === id);
 
 function addHistory(task) {
   if (!task || !task.actual || task.historySaved) return;
-  state.history.unshift({ id: uid(), taskId: task.id, title: task.title, date: state.date, planned: task.planned, actual: task.actual, completedAt: task.completedAt || Date.now() });
+  state.history.unshift({
+    id: uid(),
+    taskId: task.id,
+    title: task.title,
+    date: state.date,
+    planned: task.planned,
+    actual: task.actual,
+    completedAt: task.completedAt || Date.now()
+  });
   state.history = state.history.slice(0, 100);
   task.historySaved = true;
 }
@@ -85,11 +110,11 @@ function render() {
         <div class="task-title">${escapeHtml(task.title)}</div>
         <div class="task-meta">${task.time} ・ 予定 ${durationText(task.planned)}${task.repeat ? ' ・ 毎日' : ''}</div>
         ${task.actual ? `<div class="task-actual">実績 ${actualText(elapsed(task))}</div>` : ''}
-        <div class="task-actions">
-          <button class="task-action start-button" data-action="start" type="button">${task.status === 'running' ? '完了' : '開始'}</button>
-          <button class="task-action edit-button" data-action="edit" type="button">編集</button>
-          <button class="task-action delete-button" data-action="delete" type="button">削除</button>
+        <div class="task-tools">
+          <button class="tool-button edit-button" data-action="edit" type="button">編集</button>
+          <button class="tool-button delete-button" data-action="delete" type="button">削除</button>
         </div>
+        <button class="run-button" data-action="start" type="button">${task.status === 'running' ? '完了する' : '開始する'}</button>
       </div>
     </article>`).join('');
 
@@ -100,12 +125,17 @@ function render() {
     const date = new Date(item.completedAt);
     return `<article class="history-row"><div class="history-main"><div class="history-title">${escapeHtml(item.title)}</div><div class="history-meta">${date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })} ${clock(date)} ・ 予定 ${durationText(item.planned)}</div></div><div class="history-time">${actualText(item.actual)}</div></article>`;
   }).join('');
+
   save();
 }
 
 function formatTimer(seconds) {
-  const h = Math.floor(seconds / 3600), m = Math.floor(seconds % 3600 / 60), s = seconds % 60;
-  return h ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor(seconds % 3600 / 60);
+  const s = seconds % 60;
+  return h
+    ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+    : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
 function start(id) {
@@ -134,7 +164,10 @@ function toggleComplete(task) {
   if (!task) return;
   if (task.status === 'running') return finish(task.id);
   if (task.status === 'completed') task.status = 'pending';
-  else { task.status = 'completed'; task.completedAt = Date.now(); }
+  else {
+    task.status = 'completed';
+    task.completedAt = Date.now();
+  }
   render();
 }
 
@@ -157,7 +190,10 @@ function remove(task) {
   $('undoText').textContent = `「${task.title}」を削除しました`;
   $('undoToast').hidden = false;
   clearTimeout(undoTimer);
-  undoTimer = setTimeout(() => { $('undoToast').hidden = true; lastDeleted = null; }, 5000);
+  undoTimer = setTimeout(() => {
+    $('undoToast').hidden = true;
+    lastDeleted = null;
+  }, 5000);
   render();
 }
 
@@ -202,21 +238,38 @@ $('addForm').addEventListener('submit', e => {
   e.preventDefault();
   const title = $('taskTitle').value.trim();
   if (!title) return;
-  state.tasks.push(makeTask({ title, time: $('taskTime').value, planned: $('taskDuration').value, repeat: $('taskRepeat').checked }));
+  state.tasks.push(makeTask({
+    title,
+    time: $('taskTime').value,
+    planned: $('taskDuration').value,
+    repeat: $('taskRepeat').checked
+  }));
   $('addDialog').close();
   e.target.reset();
   $('taskTime').value = '09:00';
   $('taskDuration').value = '30';
   render();
 });
+
 $('resetButton').addEventListener('click', () => {
   if (!confirm('今日の進捗をリセットしますか？ 実績記録は残ります。')) return;
-  state.tasks.forEach(t => { t.status = 'pending'; t.started = null; t.actual = 0; t.completedAt = null; t.historySaved = false; });
+  state.tasks.forEach(t => {
+    t.status = 'pending';
+    t.started = null;
+    t.actual = 0;
+    t.completedAt = null;
+    t.historySaved = false;
+  });
   runningId = null;
   render();
 });
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(registrations => registrations.forEach(registration => registration.unregister()));
-if ('caches' in window) caches.keys().then(keys => keys.forEach(key => caches.delete(key)));
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(registrations => registrations.forEach(registration => registration.unregister()));
+}
+if ('caches' in window) {
+  caches.keys().then(keys => keys.forEach(key => caches.delete(key)));
+}
+
 setInterval(render, 1000);
 render();
