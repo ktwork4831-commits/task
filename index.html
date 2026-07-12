@@ -28,6 +28,31 @@
       <span id="liveTimer"></span><h2 id="currentTitle"></h2><p id="currentMeta"></p><button id="currentAction" type="button"></button>
     </div>
 
+    <article class="clock-card">
+      <div class="clock-card-head">
+        <div><span class="clock-kicker">DAILY PLAN</span><strong>24時間の予定</strong></div>
+        <span id="clockItemCount">予定なし</span>
+      </div>
+      <div class="clock-layout">
+        <div class="clock-visual">
+          <svg class="review-clock" viewBox="0 0 260 260" role="img" aria-label="24時間の予定時計">
+            <circle class="clock-face" cx="130" cy="130" r="92"></circle>
+            <g id="clockTicks"></g>
+            <g id="clockSegments"></g>
+            <circle class="clock-center" cx="130" cy="130" r="58"></circle>
+            <text class="clock-center-label" x="130" y="119" text-anchor="middle">予定合計</text>
+            <text class="clock-center-value" id="clockCenterValue" x="130" y="145" text-anchor="middle">0分</text>
+            <text class="clock-number" x="130" y="23" text-anchor="middle">0</text>
+            <text class="clock-number" x="239" y="134" text-anchor="middle">6</text>
+            <text class="clock-number" x="130" y="249" text-anchor="middle">12</text>
+            <text class="clock-number" x="21" y="134" text-anchor="middle">18</text>
+          </svg>
+        </div>
+        <div class="clock-legend" id="clockLegend"></div>
+      </div>
+      <p class="clock-note">開始時間と予定時間を、24時間の時計上に表示します。</p>
+    </article>
+
     <section class="task-section">
       <div class="section-heading"><div><p class="section-kicker">SCHEDULE</p><h2>今日の予定</h2></div><span class="task-count" id="taskCount">0件</span></div>
       <div class="task-list" id="taskList"></div>
@@ -49,32 +74,6 @@
         <article class="summary-card"><span>実績時間</span><strong id="reviewActual">0分</strong></article>
         <article class="summary-card"><span>予定との差</span><strong id="reviewDifference">±0分</strong></article>
       </div>
-
-      <article class="clock-card">
-        <div class="clock-card-head">
-          <div><span class="clock-kicker">TIME MAP</span><strong>時間の使い方</strong></div>
-          <span id="clockItemCount">記録なし</span>
-        </div>
-        <div class="clock-layout">
-          <div class="clock-visual">
-            <svg class="review-clock" viewBox="0 0 260 260" role="img" aria-label="24時間の実績時計">
-              <circle class="clock-face" cx="130" cy="130" r="92"></circle>
-              <g id="clockTicks"></g>
-              <g id="clockSegments"></g>
-              <circle class="clock-center" cx="130" cy="130" r="58"></circle>
-              <text class="clock-center-label" x="130" y="119" text-anchor="middle">実績</text>
-              <text class="clock-center-value" id="clockCenterValue" x="130" y="145" text-anchor="middle">0分</text>
-              <text class="clock-number" x="130" y="23" text-anchor="middle">0</text>
-              <text class="clock-number" x="239" y="134" text-anchor="middle">6</text>
-              <text class="clock-number" x="130" y="249" text-anchor="middle">12</text>
-              <text class="clock-number" x="21" y="134" text-anchor="middle">18</text>
-            </svg>
-          </div>
-          <div class="clock-legend" id="clockLegend"></div>
-        </div>
-        <p class="clock-note">完了時刻と実績時間から、作業した時間帯を時計上に表示します。</p>
-      </article>
-
       <div class="review-list" id="reviewList"></div>
       <p class="empty-state compact" id="reviewEmpty">この期間の実績記録はありません。</p>
     </section>
@@ -118,5 +117,57 @@
     <div class="undo-toast" id="undoToast" hidden><span id="undoText">削除しました</span><button id="undoButton" type="button">元に戻す</button></div>
   </main>
   <script src="app.js?v=10"></script>
+  <script>
+    renderClock = function () {
+      renderClockTicks();
+      const segmentTarget = $('clockSegments');
+      const legendTarget = $('clockLegend');
+      const center = $('clockCenterValue');
+      const count = $('clockItemCount');
+      if (!segmentTarget || !legendTarget || !center || !count) return;
+
+      const plannedTasks = tasks();
+      const totalPlanned = plannedTasks.reduce((sum, task) => sum + Number(task.planned || 0), 0);
+      center.textContent = durationText(totalPlanned);
+      count.textContent = plannedTasks.length ? `${plannedTasks.length}件の予定` : '予定なし';
+
+      if (!plannedTasks.length) {
+        segmentTarget.innerHTML = '';
+        legendTarget.innerHTML = '<div class="clock-legend-meta">タスクを追加すると、予定した時間帯がここに表示されます。</div>';
+        return;
+      }
+
+      const timeToMinutes = value => {
+        const [hour, minute] = String(value || '00:00').split(':').map(Number);
+        return Math.max(0, Math.min(1439, hour * 60 + minute));
+      };
+      const timeLabel = value => {
+        const normalized = ((Math.round(value) % 1440) + 1440) % 1440;
+        return `${String(Math.floor(normalized / 60)).padStart(2, '0')}:${String(normalized % 60).padStart(2, '0')}`;
+      };
+      const segment = (start, end, color) => {
+        if (end <= 1440) return `<path class="clock-segment" stroke="${color}" d="${arcPath(start, Math.min(end, 1439.9))}"></path>`;
+        return `<path class="clock-segment" stroke="${color}" d="${arcPath(start, 1439.9)}"></path><path class="clock-segment" stroke="${color}" d="${arcPath(0, end - 1440)}"></path>`;
+      };
+
+      segmentTarget.innerHTML = plannedTasks.map((task, index) => {
+        const start = timeToMinutes(task.time);
+        const end = start + Math.max(1, Number(task.planned || 0));
+        return segment(start, end, CLOCK_COLORS[index % CLOCK_COLORS.length]);
+      }).join('');
+
+      legendTarget.innerHTML = plannedTasks.map((task, index) => {
+        const start = timeToMinutes(task.time);
+        const planned = Math.max(1, Number(task.planned || 0));
+        const end = start + planned;
+        return `<div class="clock-legend-item">
+          <span class="clock-dot" style="background:${CLOCK_COLORS[index % CLOCK_COLORS.length]}"></span>
+          <div class="clock-legend-main"><div class="clock-legend-title">${escapeHtml(task.title)}</div><div class="clock-legend-meta">${timeLabel(start)}〜${timeLabel(end)}</div></div>
+          <span class="clock-legend-time">${durationText(planned)}</span>
+        </div>`;
+      }).join('');
+    };
+    renderClock();
+  </script>
 </body>
 </html>
