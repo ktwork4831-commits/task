@@ -201,4 +201,3 @@ $('resetButton').addEventListener('click', () => {
 });
 setInterval(render, 1000);
 render();
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
