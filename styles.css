@@ -79,7 +79,7 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .review-clock{display:block;width:min(100%,280px);height:auto;overflow:visible}
 .clock-face{fill:none;stroke:#eee8df;stroke-width:20}
 .clock-center{fill:var(--paper);stroke:#eee8df;stroke-width:1}
-.clock-segment{fill:none;stroke-width:17;stroke-linecap:round}
+.clock-segment{fill:none;stroke-width:17;stroke-linecap:butt}
 .clock-tick{stroke:#cfc7bc;stroke-width:1.4}
 .clock-tick.major{stroke:#9f968a;stroke-width:2}
 .clock-number{font-size:11px;fill:var(--muted);font-weight:700}
