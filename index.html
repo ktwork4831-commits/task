@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="今日やることに集中する、シンプルなタスク管理ページ">
-  <link rel="stylesheet" href="styles.css?v=10">
+  <link rel="stylesheet" href="styles.css?v=11">
   <title>今日のタスク</title>
 </head>
 <body>
@@ -65,8 +65,8 @@
         <span class="review-date" id="reviewDateLabel"></span>
       </div>
       <div class="review-tabs" role="tablist" aria-label="振り返る期間">
-        <button type="button" data-review-period="today" role="tab">今日</button>
         <button type="button" data-review-period="yesterday" role="tab" class="active">昨日</button>
+        <button type="button" data-review-period="today" role="tab">今日</button>
         <button type="button" data-review-period="week" role="tab">過去7日</button>
       </div>
       <div class="review-summary" id="reviewSummary">
@@ -96,7 +96,7 @@
       <form method="dialog" id="addForm">
         <div class="dialog-head"><div><p class="dialog-kicker">NEW TASK</p><h2>タスクを追加</h2></div><button class="close-button" type="button" data-close-dialog="addDialog" aria-label="閉じる">×</button></div>
         <label class="field-label">タスク名<input id="taskTitle" required maxlength="60" placeholder="例：メールを確認する"></label>
-        <label class="field-label add-start-field">開始時間<input id="taskTime" type="time" value="09:00"></label>
+        <label class="field-label time-field">開始時間<input id="taskTime" type="text" inputmode="numeric" maxlength="5" value="09:00" placeholder="09:00" autocomplete="off" aria-describedby="taskTimeHint"><small id="taskTimeHint">数字4桁でも入力できます（例：0830）</small></label>
         <label class="field-label">予定時間<select id="taskDuration"><option value="15">15分</option><option value="30" selected>30分</option><option value="45">45分</option><option value="60">1時間</option><option value="90">1時間30分</option><option value="120">2時間</option></select></label>
         <label class="check-label"><input id="taskRepeat" type="checkbox"><span>毎日の予定にする</span></label>
         <button class="save-button" value="default" type="submit">追加する</button>
@@ -107,7 +107,7 @@
       <form method="dialog" id="editForm">
         <div class="dialog-head"><div><p class="dialog-kicker">EDIT TASK</p><h2>タスクを編集</h2></div><button class="close-button" type="button" data-close-dialog="editDialog" aria-label="閉じる">×</button></div>
         <label class="field-label">タスク名<input id="editTitle" required maxlength="60"></label>
-        <label class="field-label">開始時間<input id="editTime" type="time"></label>
+        <label class="field-label time-field">開始時間<input id="editTime" type="text" inputmode="numeric" maxlength="5" placeholder="09:00" autocomplete="off"></label>
         <label class="field-label">予定時間（分）<input id="editDuration" type="number" min="1" inputmode="numeric"></label>
         <label class="check-label"><input id="editRepeat" type="checkbox"><span>毎日の予定にする</span></label>
         <button class="save-button" value="default" type="submit">変更を保存</button>
@@ -116,7 +116,7 @@
 
     <div class="undo-toast" id="undoToast" hidden><span id="undoText">削除しました</span><button id="undoButton" type="button">元に戻す</button></div>
   </main>
-  <script src="app.js?v=10"></script>
+  <script src="app.js?v=11"></script>
   <script>
     renderClock = function () {
       renderClockTicks();
@@ -168,6 +168,83 @@
       }).join('');
     };
     renderClock();
+
+    const normalizeManualTime = value => {
+      const half = String(value || '')
+        .trim()
+        .replace(/[０-９]/g, char => String.fromCharCode(char.charCodeAt(0) - 65248))
+        .replace(/[：.]/g, ':');
+      let hour;
+      let minute;
+      if (half.includes(':')) {
+        const parts = half.split(':');
+        if (parts.length !== 2) return null;
+        hour = Number(parts[0]);
+        minute = Number(parts[1]);
+      } else {
+        const digits = half.replace(/\D/g, '');
+        if (digits.length === 1 || digits.length === 2) {
+          hour = Number(digits);
+          minute = 0;
+        } else if (digits.length === 3) {
+          hour = Number(digits.slice(0, 1));
+          minute = Number(digits.slice(1));
+        } else if (digits.length === 4) {
+          hour = Number(digits.slice(0, 2));
+          minute = Number(digits.slice(2));
+        } else return null;
+      }
+      if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+      return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    };
+
+    ['taskTime', 'editTime'].forEach(id => {
+      $(id).addEventListener('blur', event => {
+        const normalized = normalizeManualTime(event.target.value);
+        if (normalized) event.target.value = normalized;
+      });
+    });
+
+    $('addForm').addEventListener('submit', event => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const title = $('taskTitle').value.trim();
+      const time = normalizeManualTime($('taskTime').value);
+      if (!title) return;
+      if (!time) {
+        alert('開始時間を「08:30」または「0830」の形で入力してください。');
+        $('taskTime').focus();
+        return;
+      }
+      state.tasks.push(makeTask({ title, time, planned: $('taskDuration').value, repeat: $('taskRepeat').checked }));
+      $('addDialog').close();
+      event.target.reset();
+      $('taskTime').value = '09:00';
+      $('taskDuration').value = '30';
+      render();
+    }, true);
+
+    $('editForm').addEventListener('submit', event => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const task = find(editingId);
+      const title = $('editTitle').value.trim();
+      const planned = Number($('editDuration').value);
+      const time = normalizeManualTime($('editTime').value);
+      if (!task || !title || !Number.isFinite(planned) || planned <= 0) return;
+      if (!time) {
+        alert('開始時間を「08:30」または「0830」の形で入力してください。');
+        $('editTime').focus();
+        return;
+      }
+      task.title = title;
+      task.time = time;
+      task.planned = planned;
+      task.repeat = $('editRepeat').checked;
+      $('editDialog').close();
+      editingId = null;
+      render();
+    }, true);
   </script>
 </body>
 </html>
