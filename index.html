@@ -6,9 +6,12 @@
   <meta name="description" content="今日やることに集中する、シンプルなタスク管理ページ">
   <link rel="stylesheet" href="styles.css?v=12">
   <style>
-    .add-start-field{width:140px!important;max-width:calc(100% - 40px)!important;margin-left:auto!important;margin-right:auto!important;text-align:center!important;overflow:hidden!important}
-    .add-start-field input[type="time"]{display:block!important;width:100%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;padding-left:6px!important;padding-right:6px!important;text-align:center!important}
-    .add-start-field input[type="time"]::-webkit-date-and-time-value{text-align:center!important}
+    .add-start-field{width:152px!important;max-width:100%!important;margin-left:auto!important;margin-right:auto!important;text-align:center!important;overflow:visible!important}
+    .add-start-field input[type="time"]{position:relative!important;display:block!important;width:100%!important;min-width:0!important;max-width:100%!important;height:46px!important;box-sizing:border-box!important;margin:5px 0 0!important;padding:0 12px!important;border:0!important;border-radius:10px!important;background:#fff!important;box-shadow:inset 0 0 0 1px var(--line)!important;color:var(--ink)!important;text-align:center!important;line-height:46px!important;font-variant-numeric:tabular-nums!important;-webkit-appearance:none!important;appearance:none!important}
+    .add-start-field input[type="time"]::-webkit-date-and-time-value{display:flex!important;width:100%!important;height:46px!important;min-height:46px!important;margin:0!important;padding:0!important;align-items:center!important;justify-content:center!important;text-align:center!important}
+    .add-start-field input[type="time"]::-webkit-datetime-edit{display:flex!important;width:100%!important;height:46px!important;padding:0!important;align-items:center!important;justify-content:center!important;text-align:center!important}
+    .add-start-field input[type="time"]::-webkit-datetime-edit-fields-wrapper{display:flex!important;align-items:center!important;justify-content:center!important;padding:0!important}
+    .add-start-field input[type="time"]::-webkit-calendar-picker-indicator{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;padding:0!important;opacity:0!important;cursor:pointer!important}
   </style>
   <title>今日のタスク</title>
 </head>
